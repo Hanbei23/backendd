@@ -8,10 +8,21 @@ import videoRouter from "./routes/video.routes.js";
 
 const app = express();
 
+const allowedOrigins = ["http://localhost:5173", "https://c-tracking.com"];
+
 app.use(
   cors({
     credentials: true,
-    origin: "http://localhost:5173",
+    origin: function (origin, callback) {
+      // allow requests with no origin like Postman or curl
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
   })
 );
 
