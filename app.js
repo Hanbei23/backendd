@@ -29,7 +29,7 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-app.use("/api/login", authRouter);
+app.use("/api/auth", authRouter);
 app.use("/api/antrian", antrianRouter);
 app.use("/api/link", videoRouter);
 
