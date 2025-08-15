@@ -12,7 +12,7 @@ const antrianSchema = new mongoose.Schema({
         type: String,
         required: [true, 'Nomor HP diperlukan'],
         trim: true,
-        match: [/^\d{10,15}$/, 'Nomor HP tidak valid'],
+        match: [/^\d{5,15}$/, 'Nomor HP tidak valid'],
     },
     platNomor: {
         type: String,
@@ -20,7 +20,7 @@ const antrianSchema = new mongoose.Schema({
         trim: true,
         uppercase: true,
         minlength: 4,
-        maxlength: 10,
+        maxlength: 20,
     },
     jenisMobil: {
         type: String,
