@@ -1,6 +1,7 @@
 import Antrian from "../models/antrian.js";
 import moment from "moment";
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
+import ExcelJS from "exceljs";
 
 export const tambahAntrian = async (req, res) => {
   try {
@@ -13,14 +14,22 @@ export const tambahAntrian = async (req, res) => {
       keterangan = "",
       lokasi = "Tunas Toyota Cimone",
       oli,
-      estimasi, 
+      estimasi,
     } = req.body;
 
-    if (!nama || !noHp || !platNomor || !jenisMobil || !tanggalServis || !oli || !estimasi) {
+    if (
+      !nama ||
+      !noHp ||
+      !platNomor ||
+      !jenisMobil ||
+      !tanggalServis ||
+      !oli ||
+      !estimasi
+    ) {
       return res.status(400).json({ message: "Semua wajib di isi" });
     }
 
-    const validOli = ['synthetic', 'full synthtic', 'gold'];
+    const validOli = ["synthetic", "full synthetic", "gold", "general repair"];
     if (!validOli.includes(oli)) {
       return res.status(400).json({ message: "Jenis oli tidak valid!" });
     }
@@ -30,7 +39,7 @@ export const tambahAntrian = async (req, res) => {
     const endOfDay = moment(servisDate).endOf("day").toDate();
 
     const jumlahAntrianHariIni = await Antrian.countDocuments({
-      tanggalServis: { $gte: startOfDay, $lte: endOfDay }
+      tanggalServis: { $gte: startOfDay, $lte: endOfDay },
     });
 
     const nomorAntrian = jumlahAntrianHariIni + 1;
@@ -45,59 +54,59 @@ export const tambahAntrian = async (req, res) => {
       nomorAntrian,
       lokasi,
       oli,
-      estimasi, 
+      estimasi,
     });
 
     await antrianBaru.save();
 
     return res.status(201).json({
       message: "Antrian berhasil ditambahkan",
-      data: antrianBaru
+      data: antrianBaru,
     });
-
   } catch (error) {
     console.error("Error tambah antrian:", error);
     return res.status(500).json({
       message: "Terjadi kesalahan pada server",
-      error: error.message
+      error: error.message,
     });
   }
 };
 
 export const editAntrian = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { status } = req.body;
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
 
-        if (!['menunggu', 'selesai', 'sudah diambil'].includes(status)) {
-            return res.status(400).json({ message: 'Status tidak valid' });
-        }
-
-        const antrian = await Antrian.findById(id);
-        if (!antrian) {
-            return res.status(404).json({ message: 'Data antrian tidak ditemukan' });
-        }
-
-        antrian.status = status;
-        await antrian.save();
-
-        if (status === 'selesai') {
-            return res.status(200).json({
-                message: 'Status berhasil diubah menjadi selesai',
-                data: {
-                    status: antrian.status,
-                    nama: antrian.nama,
-                    noHp: antrian.noHp,
-                    platNomor: antrian.platNomor,
-                },
-            });
-        }
-
-        return res.status(200).json({ message: 'Status berhasil diperbarui' });
-
-    } catch (error) {
-        return res.status(500).json({ message: 'Terjadi kesalahan server', error: error.message });
+    if (!["menunggu", "selesai", "sudah diambil"].includes(status)) {
+      return res.status(400).json({ message: "Status tidak valid" });
     }
+
+    const antrian = await Antrian.findById(id);
+    if (!antrian) {
+      return res.status(404).json({ message: "Data antrian tidak ditemukan" });
+    }
+
+    antrian.status = status;
+    await antrian.save();
+
+    if (status === "selesai") {
+      return res.status(200).json({
+        message: "Status berhasil diubah menjadi selesai",
+        data: {
+          status: antrian.status,
+          nama: antrian.nama,
+          noHp: antrian.noHp,
+          platNomor: antrian.platNomor,
+        },
+      });
+    }
+
+    return res.status(200).json({ message: "Status berhasil diperbarui" });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "Terjadi kesalahan server", error: error.message });
+  }
 };
 
 export const getAntrianByNomor = async (req, res) => {
@@ -107,7 +116,7 @@ export const getAntrianByNomor = async (req, res) => {
 
     if (!tanggalServis) {
       return res.status(400).json({
-        message: "tanggal servis wajib diisi"
+        message: "tanggal servis wajib diisi",
       });
     }
 
@@ -116,11 +125,13 @@ export const getAntrianByNomor = async (req, res) => {
 
     const antrian = await Antrian.findOne({
       platNomor: { $regex: new RegExp(`^${platNomor}$`, "i") },
-      tanggalServis: { $gte: startOfDay, $lte: endOfDay }
+      tanggalServis: { $gte: startOfDay, $lte: endOfDay },
     });
 
     if (!antrian) {
-      return res.status(404).json({ message: "Antrian tidak ditemukan pada tanggal tersebut" });
+      return res
+        .status(404)
+        .json({ message: "Antrian tidak ditemukan pada tanggal tersebut" });
     }
 
     return res.status(200).json({
@@ -128,13 +139,12 @@ export const getAntrianByNomor = async (req, res) => {
       platNomor: antrian.platNomor,
       lokasi: antrian.lokasi,
       status: antrian.status,
-      tanggalServis: antrian.tanggalServis
+      tanggalServis: antrian.tanggalServis,
     });
-
   } catch (error) {
     return res.status(500).json({
       message: "Terjadi kesalahan server",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -146,7 +156,7 @@ export const getAntrianHariIni = async (req, res) => {
     const { status } = req.query;
 
     const filter = {
-      tanggalServis: { $gte: today, $lte: endOfToday }
+      tanggalServis: { $gte: today, $lte: endOfToday },
     };
     if (status) {
       filter.status = status;
@@ -157,9 +167,18 @@ export const getAntrianHariIni = async (req, res) => {
       .select("nama nomorAntrian platNomor noHp status"); // ✅ tambahkan status
 
     const [menunggu, selesai, sudahDiambil] = await Promise.all([
-      Antrian.countDocuments({ tanggalServis: { $gte: today, $lte: endOfToday }, status: "menunggu" }),
-      Antrian.countDocuments({ tanggalServis: { $gte: today, $lte: endOfToday }, status: "selesai" }),
-      Antrian.countDocuments({ tanggalServis: { $gte: today, $lte: endOfToday }, status: "sudah diambil" }),
+      Antrian.countDocuments({
+        tanggalServis: { $gte: today, $lte: endOfToday },
+        status: "menunggu",
+      }),
+      Antrian.countDocuments({
+        tanggalServis: { $gte: today, $lte: endOfToday },
+        status: "selesai",
+      }),
+      Antrian.countDocuments({
+        tanggalServis: { $gte: today, $lte: endOfToday },
+        status: "sudah diambil",
+      }),
     ]);
 
     return res.status(200).json({
@@ -171,14 +190,13 @@ export const getAntrianHariIni = async (req, res) => {
         selesai,
         sudahDiambil,
       },
-      data: antrianHariIni
+      data: antrianHariIni,
     });
-
   } catch (error) {
     console.error("Error getAntrianHariIni:", error);
     return res.status(500).json({
       message: "Terjadi kesalahan server",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -218,7 +236,7 @@ export const getAntrianByTanggal = async (req, res) => {
 
     if (!tanggal) {
       return res.status(400).json({
-        message: "Tanggal wajib diisi dalam format Date (ISO string)"
+        message: "Tanggal wajib diisi dalam format Date (ISO string)",
       });
     }
 
@@ -231,22 +249,23 @@ export const getAntrianByTanggal = async (req, res) => {
     const endOfDay = moment(parsedDate).endOf("day").toDate();
 
     const antrian = await Antrian.find({
-      tanggalServis: { $gte: startOfDay, $lte: endOfDay }
+      tanggalServis: { $gte: startOfDay, $lte: endOfDay },
     })
       .sort({ nomorAntrian: 1 })
       .select("nama nomorAntrian noHp status platNomor createdAt");
 
     return res.status(200).json({
-      message: `Daftar antrian untuk tanggal ${moment(parsedDate).format("YYYY-MM-DD")}`,
+      message: `Daftar antrian untuk tanggal ${moment(parsedDate).format(
+        "YYYY-MM-DD"
+      )}`,
       total: antrian.length,
-      data: antrian
+      data: antrian,
     });
-
   } catch (error) {
     console.error("Error getAntrianByTanggal:", error);
     return res.status(500).json({
       message: "Terjadi kesalahan server",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -257,15 +276,15 @@ export const editStatusById = async (req, res) => {
     const { status } = req.body;
 
     // Validasi status
-    if (status && !['menunggu', 'selesai', 'sudah diambil'].includes(status)) {
+    if (status && !["menunggu", "selesai", "sudah diambil"].includes(status)) {
       return res.status(400).json({ message: "Status tidak valid" });
     }
     const updated = await Antrian.findByIdAndUpdate(
       id,
       { status },
       {
-        new: true, 
-        runValidators: true
+        new: true,
+        runValidators: true,
       }
     );
 
@@ -283,14 +302,13 @@ export const editStatusById = async (req, res) => {
         noHp: updated.noHp,
         status: updated.status,
         tanggalServis: updated.tanggalServis,
-      }
+      },
     });
-
   } catch (error) {
     console.error("Error editStatusById:", error);
     return res.status(500).json({
       message: "Terjadi kesalahan server",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -301,7 +319,7 @@ export const getAntrianOliHariIni = async (req, res) => {
     const endOfDay = moment().endOf("day").toDate();
 
     const antrianHariIni = await Antrian.find({
-      tanggalServis: { $gte: startOfDay, $lte: endOfDay }
+      tanggalServis: { $gte: startOfDay, $lte: endOfDay },
     })
       .sort({ nomorAntrian: 1 })
       .select("nomorAntrian platNomor oli status estimasi createdAt");
@@ -309,14 +327,13 @@ export const getAntrianOliHariIni = async (req, res) => {
     return res.status(200).json({
       message: "Daftar antrian hari ini",
       total: antrianHariIni.length,
-      data: antrianHariIni
+      data: antrianHariIni,
     });
-
   } catch (error) {
     console.error("Error getAntrianOliHariIni:", error);
     return res.status(500).json({
       message: "Terjadi kesalahan server",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -333,8 +350,9 @@ export const getDetailAntrianById = async (req, res) => {
     }
 
     // Coba ambil data dari database
-    const antrian = await Antrian.findById(id)
-      .select("nama noHp platNomor jenisMobil tanggalServis keterangan nomorAntrian status oli estimasi");
+    const antrian = await Antrian.findById(id).select(
+      "nama noHp platNomor jenisMobil tanggalServis keterangan nomorAntrian status oli estimasi"
+    );
 
     // Cek jika data tidak ditemukan
     if (!antrian) {
@@ -347,6 +365,213 @@ export const getDetailAntrianById = async (req, res) => {
     res.status(200).json(antrian);
   } catch (error) {
     console.error("🔥 ERROR saat mengambil detail antrian:", error); // LOG 5
-    res.status(500).json({ message: "Gagal mengambil data", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Gagal mengambil data", error: error.message });
+  }
+};
+
+export const getAntrianByPerusahaan = async (req, res) => {
+  try {
+    const { nama, tanggal } = req.query;
+
+    if (!nama || !tanggal) {
+      return res.status(400).json({
+        message: "Nama perusahaan dan tanggal wajib diisi",
+      });
+    }
+
+    const parsedDate = new Date(tanggal);
+    if (isNaN(parsedDate.getTime())) {
+      return res.status(400).json({ message: "Format tanggal tidak valid" });
+    }
+
+    const startOfDay = moment(parsedDate).startOf("day").toDate();
+    const endOfDay = moment(parsedDate).endOf("day").toDate();
+
+    const antrian = await Antrian.find({
+      nama: { $regex: nama, $options: "i" },
+      tanggalServis: { $gte: startOfDay, $lte: endOfDay },
+    })
+      .sort({ nomorAntrian: 1 })
+      .select("nama status platNomor tanggalServis");
+
+    if (!antrian.length) {
+      return res.status(404).json({
+        message: `Tidak ada antrian perusahaan '${nama}' pada tanggal ${moment(
+          parsedDate
+        ).format("YYYY-MM-DD")}`,
+      });
+    }
+
+    return res.status(200).json({
+      message: `Daftar antrian perusahaan '${nama}' pada tanggal ${moment(
+        parsedDate
+      ).format("YYYY-MM-DD")}`,
+      total: antrian.length,
+      data: antrian,
+    });
+  } catch (error) {
+    console.error("Error getAntrianByPerusahaan:", error);
+    return res.status(500).json({
+      message: "Terjadi kesalahan server",
+      error: error.message,
+    });
+  }
+};
+
+export const exportAntrianExcel = async (req, res) => {
+  try {
+    const { tanggal } = req.query;
+
+    if (!tanggal) {
+      return res.status(400).json({
+        message: "Tanggal wajib diisi dalam format YYYY-MM-DD",
+      });
+    }
+
+    const parsedDate = new Date(tanggal);
+    if (isNaN(parsedDate.getTime())) {
+      return res.status(400).json({ message: "Format tanggal tidak valid" });
+    }
+
+    const startOfDay = moment(parsedDate).startOf("day").toDate();
+    const endOfDay = moment(parsedDate).endOf("day").toDate();
+
+    // Ambil data antrian dari MongoDB
+    const antrian = await Antrian.find({
+      tanggalServis: { $gte: startOfDay, $lte: endOfDay },
+    }).sort({ nomorAntrian: 1 });
+
+    if (!antrian.length) {
+      return res
+        .status(404)
+        .json({ message: "Tidak ada data antrian pada tanggal ini" });
+    }
+
+    // Buat workbook baru
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Data Antrian");
+
+    // Header
+    worksheet.columns = [
+      { header: "Nomor Antrian", key: "nomorAntrian", width: 15 },
+      { header: "Nama", key: "nama", width: 25 },
+      { header: "Nomor HP", key: "noHp", width: 20 },
+      { header: "Plat Nomor", key: "platNomor", width: 15 },
+      { header: "Jenis Mobil", key: "jenisMobil", width: 20 },
+      { header: "Oli", key: "oli", width: 20 },
+      { header: "Keterangan", key: "keterangan", width: 30 },
+    ];
+
+    // Tambahkan data ke worksheet
+    antrian.forEach((item) => {
+      worksheet.addRow({
+        nomorAntrian: item.nomorAntrian,
+        nama: item.nama,
+        noHp: item.noHp,
+        platNomor: item.platNomor,
+        jenisMobil: item.jenisMobil,
+        oli: item.oli,
+        keterangan: item.keterangan || "-",
+      });
+    });
+
+    // Styling Header
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true };
+      cell.alignment = { vertical: "middle", horizontal: "center" };
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFFFCC00" }, // kuning
+      };
+      cell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" },
+      };
+    });
+
+    // Set response headers untuk download
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=Antrian-${moment(parsedDate).format(
+        "YYYY-MM-DD"
+      )}.xlsx`
+    );
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    // Kirim file Excel ke client
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error("Error exportAntrianExcel:", error);
+    return res.status(500).json({
+      message: "Terjadi kesalahan server saat export Excel",
+      error: error.message,
+    });
+  }
+};
+
+export const hapusAntrianByTanggal = async (req, res) => {
+  try {
+    const { tanggal } = req.query;
+
+    if (!tanggal) {
+      return res.status(400).json({
+        message: "Tanggal wajib diisi dalam format YYYY-MM-DD",
+      });
+    }
+
+    const parsedDate = new Date(tanggal);
+    if (isNaN(parsedDate.getTime())) {
+      return res.status(400).json({ message: "Format tanggal tidak valid" });
+    }
+
+    const startOfDay = moment(parsedDate).startOf("day").toDate();
+    const endOfDay = moment(parsedDate).endOf("day").toDate();
+
+    // Cari data antrian sesuai tanggal
+    const antrian = await Antrian.find({
+      tanggalServis: { $gte: startOfDay, $lte: endOfDay },
+    });
+
+    if (!antrian.length) {
+      return res.status(404).json({
+        message: `Tidak ada data antrian pada tanggal ${moment(
+          parsedDate
+        ).format("YYYY-MM-DD")}`,
+      });
+    }
+
+    // Hapus semua antrian sesuai tanggal
+    await Antrian.deleteMany({
+      tanggalServis: { $gte: startOfDay, $lte: endOfDay },
+    });
+
+    return res.status(200).json({
+      message: `Berhasil menghapus ${
+        antrian.length
+      } data antrian pada tanggal ${moment(parsedDate).format("YYYY-MM-DD")}`,
+      totalDeleted: antrian.length,
+      data: antrian.map((item) => ({
+        id: item._id,
+        nama: item.nama,
+        nomorAntrian: item.nomorAntrian,
+        platNomor: item.platNomor,
+        tanggalServis: item.tanggalServis,
+      })),
+    });
+  } catch (error) {
+    console.error("Error hapusAntrianByTanggal:", error);
+    return res.status(500).json({
+      message: "Terjadi kesalahan server saat menghapus data",
+      error: error.message,
+    });
   }
 };
