@@ -12,6 +12,7 @@ import {
   getAntrianByPerusahaan,
   exportAntrianExcel,
   hapusAntrianByTanggal,
+  exportAntrianByBulan,
 } from "../controller/antrian.controller.js";
 import { authorize } from "../middleware/auth.middleware.js";
 
@@ -30,5 +31,6 @@ antrianRouter.get("/detail/:id", getDetailAntrianById);
 antrianRouter.get("/perusahaan", getAntrianByPerusahaan);
 antrianRouter.get("/export/excel", exportAntrianExcel);
 antrianRouter.delete("/by-tanggal", authorize, hapusAntrianByTanggal);
+antrianRouter.get("/export/excel/bulan", exportAntrianByBulan);
 
 export default antrianRouter;

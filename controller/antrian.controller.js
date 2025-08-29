@@ -575,3 +575,104 @@ export const hapusAntrianByTanggal = async (req, res) => {
     });
   }
 };
+
+export const exportAntrianByBulan = async (req, res) => {
+  try {
+    const { bulan } = req.query; // format: YYYY-MM
+
+    if (!bulan) {
+      return res.status(400).json({
+        message: "Bulan wajib diisi dalam format YYYY-MM",
+      });
+    }
+
+    const parsedDate = moment(bulan, "YYYY-MM", true);
+    if (!parsedDate.isValid()) {
+      return res
+        .status(400)
+        .json({ message: "Format bulan tidak valid (contoh: 2025-08)" });
+    }
+
+    // Dapatkan awal & akhir bulan
+    const startOfMonth = parsedDate.startOf("month").toDate();
+    const endOfMonth = parsedDate.endOf("month").toDate();
+
+    // Ambil data antrian dari MongoDB sesuai bulan
+    const antrian = await Antrian.find({
+      tanggalServis: { $gte: startOfMonth, $lte: endOfMonth },
+    }).sort({ tanggalServis: 1, nomorAntrian: 1 });
+
+    if (!antrian.length) {
+      return res
+        .status(404)
+        .json({ message: "Tidak ada data antrian pada bulan ini" });
+    }
+
+    // Buat workbook baru
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Data Antrian Bulanan");
+
+    // Header kolom
+    worksheet.columns = [
+      { header: "Tanggal Servis", key: "tanggalServis", width: 18 },
+      { header: "Nomor Antrian", key: "nomorAntrian", width: 15 },
+      { header: "Nama", key: "nama", width: 25 },
+      { header: "Nomor HP", key: "noHp", width: 20 },
+      { header: "Plat Nomor", key: "platNomor", width: 15 },
+      { header: "Jenis Mobil", key: "jenisMobil", width: 20 },
+      { header: "Oli", key: "oli", width: 20 },
+      { header: "Keterangan", key: "keterangan", width: 30 },
+    ];
+
+    // Tambahkan data ke worksheet
+    antrian.forEach((item) => {
+      worksheet.addRow({
+        tanggalServis: moment(item.tanggalServis).format("YYYY-MM-DD"),
+        nomorAntrian: item.nomorAntrian,
+        nama: item.nama,
+        noHp: item.noHp,
+        platNomor: item.platNomor,
+        jenisMobil: item.jenisMobil,
+        oli: item.oli,
+        keterangan: item.keterangan || "-",
+      });
+    });
+
+    // Styling Header
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true };
+      cell.alignment = { vertical: "middle", horizontal: "center" };
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF4CAF50" }, // hijau
+      };
+      cell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" },
+      };
+    });
+
+    // Set response headers untuk download
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=Antrian-Bulan-${parsedDate.format("YYYY-MM")}.xlsx`
+    );
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    // Kirim file Excel ke client
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error("Error exportAntrianByBulan:", error);
+    return res.status(500).json({
+      message: "Terjadi kesalahan server saat export Excel bulanan",
+      error: error.message,
+    });
+  }
+};
