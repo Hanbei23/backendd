@@ -3,6 +3,19 @@ import moment from "moment";
 import mongoose from "mongoose";
 import ExcelJS from "exceljs";
 
+export const displayPublic = async (req, res) => {
+  try {
+    const antrian = await Antrian.find();
+    res.status(200).json({ data: antrian });
+  } catch (error) {
+    res.status(500).json({
+      message:
+        "Koneksi Bermasalah. Gagal mengambil data antrian. Periksa koneksi server.",
+      error: error.message,
+    });
+  }
+};
+
 export const tambahAntrian = async (req, res) => {
   try {
     const {
@@ -75,7 +88,7 @@ export const tambahAntrian = async (req, res) => {
 export const editAntrian = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, pengerjaan } = req.body;
 
     if (!["menunggu", "selesai", "sudah diambil"].includes(status)) {
       return res.status(400).json({ message: "Status tidak valid" });
@@ -87,25 +100,22 @@ export const editAntrian = async (req, res) => {
     }
 
     antrian.status = status;
-    await antrian.save();
 
-    if (status === "selesai") {
-      return res.status(200).json({
-        message: "Status berhasil diubah menjadi selesai",
-        data: {
-          status: antrian.status,
-          nama: antrian.nama,
-          noHp: antrian.noHp,
-          platNomor: antrian.platNomor,
-        },
-      });
+    if (pengerjaan) {
+      antrian.pengerjaan = pengerjaan;
     }
 
-    return res.status(200).json({ message: "Status berhasil diperbarui" });
+    await antrian.save();
+
+    return res.status(200).json({
+      message: "Status berhasil diperbarui",
+      data: antrian,
+    });
   } catch (error) {
-    return res
-      .status(500)
-      .json({ message: "Terjadi kesalahan server", error: error.message });
+    return res.status(500).json({
+      message: "Terjadi kesalahan server",
+      error: error.message,
+    });
   }
 };
 

@@ -1,17 +1,34 @@
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import User from '../models/user.js';
-import { JWT_SECRET, JWT_EXPIRES_IN } from '../config/env.js';
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import User from "../models/user.js";
+import { JWT_SECRET, JWT_EXPIRES_IN } from "../config/env.js";
 
+/* ================= SIGN UP ================= */
 export const signUp = async (req, res) => {
   try {
-    const { nama, email, password } = req.body;
+    let { nama, email, password } = req.body;
+
+    if (!nama || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Semua field wajib diisi",
+      });
+    }
+
+    email = email.toLowerCase().trim();
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(409).json({
         success: false,
-        message: 'Email sudah digunakan',
+        message: "Email sudah digunakan",
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password minimal 6 karakter",
       });
     }
 
@@ -25,7 +42,7 @@ export const signUp = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Registrasi berhasil',
+      message: "Registrasi berhasil",
       user: {
         id: user._id,
         nama: user.nama,
@@ -33,23 +50,34 @@ export const signUp = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("SIGN UP ERROR:", error);
     res.status(500).json({
       success: false,
-      message: 'Gagal registrasi',
+      message: "Gagal registrasi",
       error: error.message,
     });
   }
 };
 
+/* ================= SIGN IN ================= */
 export const signIn = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    let { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email dan password wajib diisi",
+      });
+    }
+
+    email = email.toLowerCase().trim();
 
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Email tidak terdaftar',
+        message: "Email tidak terdaftar",
       });
     }
 
@@ -57,19 +85,17 @@ export const signIn = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Password salah',
+        message: "Password salah",
       });
     }
 
-    const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
+      expiresIn: JWT_EXPIRES_IN,
+    });
 
     res.status(200).json({
       success: true,
-      message: 'Login berhasil',
+      message: "Login berhasil",
       token,
       user: {
         id: user._id,
@@ -78,9 +104,10 @@ export const signIn = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("SIGN IN ERROR:", error);
     res.status(500).json({
       success: false,
-      message: 'Gagal login',
+      message: "Gagal login",
       error: error.message,
     });
   }
